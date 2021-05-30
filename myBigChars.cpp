@@ -1,10 +1,10 @@
 #include "myBigChars.h"
 
-int bc_printA (char * str)
+int bc_printA (const char * str)
 {
     int size = strlen(str);
     printf("\E(0");//включить рисование
-    for (size_t i = 0; i < size; i++)
+    for (int i = 0; i < size; i++)
     {
         printf("%c", str[i]);
     }
@@ -19,18 +19,18 @@ int bc_box(int x1, int y1, int x2, int y2)
     int size_y = y2 - y1;
     printf("\E(0");
     printf(Angel_LU);
-    for (size_t i = 0; i < size_x -1 ; i++)
+    for (int i = 0; i < size_x -1 ; i++)
     {
         printf(Line_xor);
     }
     printf(Angel_RU);
-    for (size_t i = 0; i < size_y -1; i++)
+    for (int i = 0; i < size_y -1; i++)
     {
         mt_gotoXY(x2,y1 + i+1);
         printf(Line_ver);
     }
     mt_gotoXY(x1 + 1,y2);
-    for (size_t i = size_x -1; i > 0; i--)
+    for (int i = size_x -1; i > 0; i--)
     {
         printf(Line_xor);
     }
@@ -38,7 +38,7 @@ int bc_box(int x1, int y1, int x2, int y2)
     printf(Angel_RD);
     mt_gotoXY(x1,y2);
     printf(Angel_LD);
-    for (size_t i = 0; i < size_y -1; i++)
+    for (int i = 0; i < size_y -1; i++)
     {
         mt_gotoXY(x1,y1 + i+1);
         printf(Line_ver);
@@ -51,7 +51,7 @@ int bc_printbigchar (long int num[2], int x, int y, enum colors a, enum colors b
 {
     mt_gotoXY(x,y);
     int count = 0;
-    for (size_t i = 0; i < 32; i++)
+    for (int i = 0; i < 32; i++)
     {
         if ((i%8) == 0)
         {
@@ -67,7 +67,7 @@ int bc_printbigchar (long int num[2], int x, int y, enum colors a, enum colors b
             printf(" ");
         }
     }
-    for (size_t i = 0; i < 32; i++)
+    for (int i = 0; i < 32; i++)
     {
         if ((i%8) == 0)
         {

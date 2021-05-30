@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <termios.h>
+#pragma once
 #include <unistd.h>
 
 enum keys
@@ -13,14 +11,15 @@ enum keys
     Signal = 7,
     t = 8,
     i = 9,
-    f5 = 10,
-    f6 = 11,
+    z = 10,
+    x = 11,
     key_down = 12,
     key_up = 13,
     key_left = 14,
     key_right = 15,
     key_other = 16,
     enter = 17,
+    c = 18,
 };
 
 int rk_readkey(enum keys *a);

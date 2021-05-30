@@ -1,4 +1,9 @@
 #include "foo.h"
+int instruction_counter;
+int accumulator;
+int IGNOR_SYS_TIME;
+struct itimerval nval, oval;
+struct position_cors cr;
 
 long int zero[2] = {0b11111111110000111100001111000011, 0b11000011110000111100001111111111};
 long int one[2] = {0b11111111000110000001100000011000, 0b00011000000111100001110000011000};
@@ -25,20 +30,30 @@ void print_mem()
     mt_gotoXY(25, 1);
     printf("Memory");
     mt_gotoXY(3, 2);
-    for (size_t i = 1; i < 12; i++)
+    int value;
+    for (int i = 0; i < 10; i++)
     {
-        for (size_t j = 1; j < 11; j++)
+        for (int j = 0; j < 10; j++)
         {
             if (cr.x == i && cr.y == j)
             {
-                printf("/%04d ", arr[i * 11 + j]);
+                value = abs(arr[i * 10 + j]);
+                printf("/%04X ", value);
             }
             else
             {
-                printf("+%04d ", arr[i * 11 + j]);
+                if (arr[i * 10 + j] >= 0)
+                {
+                    printf("+%04X ", arr[i * 10 + j]);
+                }
+                else
+                {
+                    value = abs(arr[i * 10 + j]);
+                    printf("-%04X ", value);
+                }
             }
         }
-        mt_gotoXY(3, i + 1);
+        mt_gotoXY(3, i + 3);
     }
 }
 
@@ -48,7 +63,14 @@ void print_acc()
     mt_gotoXY(69, 1);
     printf("Accumulator");
     mt_gotoXY(71, 2);
-    printf("+%04d", accumulator);
+    if (accumulator >= 0)
+    {
+        printf("+%04x", accumulator);
+    }
+    else
+    {
+        printf("-%04x", abs(accumulator));
+    }
 }
 
 void print_instructioncounter()
@@ -71,11 +93,41 @@ void print_operation()
 
 void print_flags()
 {
+    int value = 0;
     bc_box(64, 10, 83, 12);
     mt_gotoXY(71, 10);
     printf("flags");
     mt_gotoXY(71, 11);
-    printf("O E V M");
+    sc_regGet(overflow_during_operations, &value);
+    if (value == 1)
+    {
+        mt_gotoXY(69, 11);
+        printf("П");
+    }
+    sc_regGet(Division_by_0_error, &value);
+    if (value == 1)
+    {
+        mt_gotoXY(71, 11);
+        printf("0");
+    }
+    sc_regGet(Out_of_bounds_error, &value);
+    if (value == 1)
+    {
+        mt_gotoXY(73, 11);
+        printf("М");
+    }
+    sc_regGet(ignore_clock_pulses, &value);
+    if (value == 1)
+    {
+        mt_gotoXY(75, 11);
+        printf("Т");
+    }
+    sc_regGet(Invalid_command_specified, &value);
+    if (value == 1)
+    {
+        mt_gotoXY(77, 11);
+        printf("Е");
+    }
 }
 
 void print_bigChars()
@@ -83,16 +135,25 @@ void print_bigChars()
     int value;
     int arr[4] = {0};
     bc_box(2, 13, 48, 22);
-    sc_memoryGet(cr.x * 11 + cr.y, &value);
+    sc_memoryGet(cr.x * 10 + cr.y, &value);
+    value = abs(value);
     int cnt = 0;
     while (value)
     {
-        int curr = value % 10;
-        value /= 10;
+        int curr = value % 16;
+        value /= 16;
         arr[cnt] = curr;
         ++cnt;
     }
-    bc_printbigchar(plus, 3, 13, black, black);
+    sc_memoryGet(cr.x * 10 + cr.y, &value);
+    if (value >= 0)
+    {
+        bc_printbigchar(plus, 3, 13, black, black);
+    }
+    else
+    {
+        bc_printbigchar(minus, 3, 13, black, black);
+    }
     print_Char(arr[3], 12, 13);
     print_Char(arr[2], 21, 13);
     print_Char(arr[1], 30, 13);
@@ -133,6 +194,24 @@ void print_Char(int value, int a, int b)
     case 9:
         bc_printbigchar(nine, a, b, black, black);
         break;
+    case 10:
+        bc_printbigchar(A, a, b, black, black);
+        break;
+    case 11:
+        bc_printbigchar(B, a, b, black, black);
+        break;
+    case 12:
+        bc_printbigchar(C, a, b, black, black);
+        break;
+    case 13:
+        bc_printbigchar(D, a, b, black, black);
+        break;
+    case 14:
+        bc_printbigchar(E, a, b, black, black);
+        break;
+    case 15:
+        bc_printbigchar(F, a, b, black, black);
+        break;
     default:
         break;
     }
@@ -154,10 +233,19 @@ void print_keys()
     mt_gotoXY(50, 18);
     printf("i - reset");
     mt_gotoXY(50, 19);
-    printf("F5 - accumulator");
+    printf("Z - accumulator");
     mt_gotoXY(50, 20);
-    printf("F6 - instructioncounter");
+    printf("X - instructioncounter");
+    mt_gotoXY(50, 21);
+    printf("C - compiling the program");
 }
+
+void print_input_outpoot()
+{
+    mt_gotoXY(1, 23);
+    printf("Input/Outpoot:\n");
+}
+
 void drow()
 {
     int rows, cols;
@@ -166,7 +254,7 @@ void drow()
         if (rows >= 26 && cols >= 84)
         {
             mt_clrscr();
-
+            jump_memory(instruction_counter);
             print_mem();
             print_acc();
             print_instructioncounter();
@@ -174,7 +262,8 @@ void drow()
             print_flags();
             print_keys();
             print_bigChars();
-            mt_gotoXY(1, 30);
+            print_input_outpoot();
+            mt_gotoXY(1, 24);
         }
         else
         {
@@ -190,9 +279,9 @@ void cursor(enum keys a)
 {
     if (a == key_up)
     {
-        if (cr.x == 2)
+        if (cr.x == 0)
         {
-            cr.x = 2;
+            cr.x = 0;
         }
         else
         {
@@ -201,9 +290,9 @@ void cursor(enum keys a)
     }
     else if (a == key_down)
     {
-        if (cr.x == 11)
+        if (cr.x == 9)
         {
-            cr.x = 11;
+            cr.x = 9;
         }
         else
         {
@@ -212,9 +301,9 @@ void cursor(enum keys a)
     }
     else if (a == key_right)
     {
-        if (cr.y == 10)
+        if (cr.y == 9)
         {
-            cr.y = 10;
+            cr.y = 9;
         }
         else
         {
@@ -223,9 +312,9 @@ void cursor(enum keys a)
     }
     else if (a == key_left)
     {
-        if (cr.y == 1)
+        if (cr.y == 0)
         {
-            cr.y = 1;
+            cr.y = 0;
         }
         else
         {
@@ -235,32 +324,60 @@ void cursor(enum keys a)
     else if (a == enter)
     {
         int value;
-        rk_mytermregime(1, 0, 1, 1, 1);
-        scanf("%d", &value);
-        if (value > 9999)
+        rk_mytermregime(1, 0, 1, 0, 1);
+        scanf("%x", &value);
+        if (value > 65535)
         {
-            value = 9999;
+            value = 65535;
         }
-        else if (value < 0)
+        else if (value < -65535)
         {
             value = 0;
         }
         rk_mytermrestore();
-        sc_memorySet(cr.x * 11 + cr.y, value);
+        sc_memorySet(cr.x * 10 + cr.y, value);
     }
+    instruction_count();
+}
+
+void instruction_count()
+{
+    instruction_counter = cr.x * 10 + cr.y;
 }
 
 void restore_simple_computer()
 {
     instruction_counter = 0;
     accumulator = 0;
-    for (size_t i = 0; i < 131; i++)
+    for (int i = 0; i < 100; i++)
     {
         sc_memorySet(i, 0);
     }
-    cr.x = 2;
-    cr.y = 1;
-    setitimer (ITIMER_REAL, &nval, &oval);
+    cr.x = 0;
+    cr.y = 0;
+    setitimer(ITIMER_REAL, &nval, &oval);
+}
+
+void compiling_the_program(enum keys a)
+{
+    if (a == c)
+    {
+        printf("погнали компилировать!!!!\n");
+        char* filename1 = new char(100);
+        char* filename2 = new char(100);
+        char* command = new char(100); 
+        scanf("%s %s %s", command, filename1, filename2);
+        if (!strcmp(command, "sat"))
+        {
+            start_compiling_simple_accembler(filename1, filename2);
+        }
+        else
+        {
+            printf("Некоректная команда!");
+        }
+        getchar(); getchar();
+    }
+    
 }
 
 void sighandler(int signo)
@@ -272,11 +389,99 @@ void timer(int signo)
 {
     if (instruction_counter < 100)
     {
+        CU();
         instruction_counter++;
     }
-    if (instruction_counter > 10)
+    if (instruction_counter > 99)
     {
-        alarm(0);
+        instruction_counter = 0;
     }
     drow();
+}
+
+void f5(enum keys a)
+{
+    if (a == z)
+    {
+        sc_memoryGet(cr.x * 10 + cr.y, &accumulator);
+    }
+}
+
+void f6(enum keys a)
+{
+    if (a == x)
+    {
+        int value;
+        rk_mytermregime(1, 0, 1, 0, 1);
+        scanf("%d", &value);
+        if (value < 0 || value > 99)
+        {
+            value = 0;
+        }
+        instruction_counter = value;
+        rk_mytermrestore();
+        jump_memory(instruction_counter);
+    }
+}
+
+void jump_memory(int instruction_counter)
+{
+    cr.x = instruction_counter / 10;
+    cr.y = instruction_counter % 10;
+}
+
+void Run(enum keys a)
+{
+    if (a == run && IGNOR_SYS_TIME == 1)
+    {
+        IGNOR_SYS_TIME = 0;
+        setitimer(ITIMER_REAL, &nval, &oval);
+        rk_mytermrestore();
+    }
+    else if (a == run && IGNOR_SYS_TIME == 0)
+    {
+        IGNOR_SYS_TIME = 1;
+        alarm(0);
+        rk_mytermrestore();
+    }
+}
+
+void next_command(enum keys a)
+{
+    if (a == step)
+    {
+        if (instruction_counter < 100)
+        {
+            CU();
+            instruction_counter++;
+        }
+        if (instruction_counter > 99)
+        {
+            instruction_counter = 0;
+        }
+    }
+}
+
+void Save(enum keys a)
+{
+    if (a == save)
+    {
+        char *a = new char(50);
+        std::cout << "Введите название файла, куда сохранить:";
+        std::cin >> a ;
+        sc_memorySave(a);
+        getchar();
+    }
+}
+
+void Load(enum keys a)
+{
+    if (a == load)
+    {
+        char *a = new char(50);
+        std::cout << "Введите название файла, откуда загрузить:";
+        std::cin.getline(a,50);
+        sc_memoryLoad(a);
+        getchar();
+    }
 }

@@ -1,4 +1,7 @@
 #include "myReadKey.h"
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
 
 static struct termios stored;
 
@@ -30,14 +33,6 @@ int rk_readkey(enum keys *a) //cчетчик клавиш
     {
         *a = key_left;
     }
-    else if (!strcmp(buf, "\033[15~"))
-    {
-        *a = f5;
-    }
-    else if (!strcmp(buf, "\033[17~"))
-    {
-        *a = f6;
-    }
     else if (buf[0] == '\n')
     {
         *a = enter;
@@ -62,13 +57,25 @@ int rk_readkey(enum keys *a) //cчетчик клавиш
     {
         *a = i;
     }
-    else if ((int)buf[0] == 27)
+    else if (!strcmp(buf, "\033"))
     {
         *a = Exit;
     }
     else if (buf[0] == 'a')
     {
         *a = Signal;
+    }
+    else if (buf[0] == 'z')
+    {
+        *a = z;
+    }
+    else if (buf[0] == 'x')
+    {
+        *a = x;
+    }
+    else if (buf[0] == 'c')
+    {
+        *a = c;
     }
     else
     {
